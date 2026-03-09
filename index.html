@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="ms">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistem Slip Gaji Online 2025-2030</title>
+    <style>
+        :root { --p: #1a2a6c; --s: #b21f1f; --bg: #f8f9fa; }
+        body { font-family: sans-serif; background: var(--bg); margin: 0; padding: 20px; text-align: center; }
+        .card { max-width: 500px; margin: auto; background: white; padding: 30px; border-radius: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
+        input, select, button { width: 100%; padding: 12px; margin: 10px 0; border-radius: 8px; border: 1px solid #ddd; box-sizing: border-box; }
+        button { background: var(--p); color: white; font-weight: bold; cursor: pointer; border: none; }
+        button:hover { opacity: 0.9; }
+        #slipResult { margin-top: 20px; text-align: left; background: white; padding: 20px; border: 1px solid #333; display: none; }
+        .header { border-bottom: 2px solid #333; padding-bottom: 10px; margin-bottom: 10px; font-weight: bold; }
+        @media print { .no-print { display: none; } #slipResult { display: block !important; border: none; } }
+    </style>
+</head>
+<body>
+
+    <div class="card no-print">
+        <h2 style="color: var(--p);">Semakan Slip Gaji Online</h2>
+        <p>Sila masukkan maklumat anda untuk pengesahan</p>
+        <input type="text" id="inputIC" placeholder="No. Kad Pengenalan (Tanpa -)">
+        <select id="inputMonth">
+            <option value="01">Januari</option><option value="02">Februari</option>
+            <option value="03">Mac</option><option value="04">April</option>
+        </select>
+        <select id="inputYear">
+            <option>2025</option><option selected>2026</option><option>2027</option><option>2028</option><option>2029</option>
+        </select>
+        <button onclick="fetchData()">SEMAK GAJI</button>
+        <div id="loader" style="display:none;">Memuat turun data...</div>
+    </div>
+
+    <div id="slipResult"></div>
+
+    <div id="actionBtns" style="display:none; margin-top:20px;" class="no-print">
+        <button style="background: var(--s);" onclick="window.print()">Simpan / Cetak PDF</button>
+        <button style="background: #25D366;" onclick="window.location.reload()">Semak IC Lain</button>
+    </div>
+
+    <script>
+        // MASUKKAN PAUTAN GOOGLE SHEETS CSV ANDA DI SINI
+        const csvUrl = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTb4cDk70wn-BjWI9uQt-c8FQCeJrLuFOc3ji8RX1ZZWo8FSoNZR5l46GMLp6X88WxoJiL81-uOW3Kg/pub?gid=1552354960&single=true&output=csv";
+
+        async function fetchData() {
+            const ic = document.getElementById('inputIC').value;
+            const month = document.getElementById('inputMonth').value;
+            const year = document.getElementById('inputYear').value;
+            const loader = document.getElementById('loader');
+
+            if(!ic) return alert("Sila masukkan No. IC!");
+            
+            loader.style.display = "block";
+
+            try {
+                const response = await fetch(csvUrl);
+                const data = await response.text();
+                const rows = data.split('\n').slice(1); // Buang header
+                
+                let found = null;
+
+                rows.forEach(row => {
+                    const col = row.split(',');
+                    // Periksa IC (kolum 1), Bulan (kolum 6), Tahun (kolum 7)
+                    if(col[1]?.trim() === ic && col[6]?.trim() === month && col[7]?.trim() === year) {
+                        found = {
+                            nama: col[0], ic: col[1], id: col[2], mula: col[3], tamat: col[4],
+                            pokok: col[5], eJaw: col[8], eOT: col[9], 
+                            pKWSP: col[10], pSoc: col[11], pSIP: col[12]
+                        };
+                    }
+                });
+
+                if(found) {
+                    displaySlip(found, month, year);
+                } else {
+                    alert("Rekod tidak dijumpai. Sila pastikan IC, Bulan, dan Tahun adalah betul.");
+                }
+            } catch (e) {
+                alert("Ralat sambungan database.");
+            } finally {
+                loader.style.display = "none";
+            }
+        }
+
+        function displaySlip(d, m, y) {
+            const res = document.getElementById('slipResult');
+            const btns = document.getElementById('actionBtns');
+            res.style.display = "block";
+            btns.style.display = "block";
+
+            const totalEarn = parseFloat(d.pokok) + parseFloat(d.eJaw || 0) + parseFloat(d.eOT || 0);
+            const totalDed = parseFloat(d.pKWSP || 0) + parseFloat(d.pSoc || 0) + parseFloat(d.pSIP || 0);
+            const net = totalEarn - totalDed;
+
+            res.innerHTML = `
+                <div class="header">
+                    <div style="font-size: 1.2em;">SLIP GAJI KORPORAT</div>
+                    <div>BULAN: ${m} / ${y}</div>
+                </div>
+                <p><strong>NAMA:</strong> ${d.nama}<br>
+                <strong>NO. KP:</strong> ${d.ic}<br>
+                <strong>NO. STAF:</strong> ${d.id}</p>
+                <hr>
+                <table style="width:100%">
+                    <tr><td>Gaji Pokok</td><td style="text-align:right">RM ${d.pokok}</td></tr>
+                    <tr><td>Elaun & OT</td><td style="text-align:right">RM ${(parseFloat(d.eJaw)+parseFloat(d.eOT)).toFixed(2)}</td></tr>
+                    <tr style="color:red"><td>Jumlah Potongan</td><td style="text-align:right">- RM ${totalDed.toFixed(2)}</td></tr>
+                </table>
+                <div style="margin-top:20px; padding:10px; background:#eee; font-weight:bold; text-align:right">
+                    GAJI BERSIH: RM ${net.toFixed(2)}
+                </div>
+            `;
+        }
+    </script>
+</body>
+</html>
